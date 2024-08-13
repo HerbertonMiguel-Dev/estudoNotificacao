@@ -1,118 +1,89 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import { useEffect, useState } from 'react'
+import { View, Text, StyleSheet, Button } from 'react-native'
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+import notifee, {
+  AuthorizationStatus,
+  EventType,
+  AndroidImportance
+} from '@notifee/react-native'
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+export default function App(){
+  const [statusNotification, setStatusNotification] = useState(true);
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+  useEffect(() => {
+    async function getPermission(){
+      const settings = await notifee.requestPermission();
+      if(settings.authorizationStatus >= AuthorizationStatus.AUTHORIZED){
+        console.log("Permission: ", settings.authorizationStatus)
+        setStatusNotification(true);
+      }else{
+        console.log("Usuario negou a permissao!")
+        setStatusNotification(false);
+      }
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
+      
+    }
 
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
+    getPermission();
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
+  }, [])
 
-  return (
-    <SafeAreaView style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
+
+  useEffect(() => {
+    return notifee.onForegroundEvent(({ type, detail }) => {
+      switch(type){
+        case EventType.DISMISSED:
+          console.log("USUARIO DESCARTOU A NOTIFICACAO")
+          break;
+        case EventType.PRESS:
+          console.log("TOCOU: ", detail.notification)
+      }
+    })
+  }, [])
+
+
+
+  async function handleNotificate(){
+    if(!statusNotification){
+      return;
+    }
+
+    const channelId = await notifee.createChannel({
+      id: 'lembrete',
+      name: 'lembrete',
+      vibration: true,
+      importance: AndroidImportance.HIGH
+    })
+
+    await notifee.displayNotification({
+      id: 'lembrete',
+      title: 'Estudar programaçao!',
+      body: 'Lembrete para estudar react-native amanha!',
+      android:{
+        channelId,
+        pressAction: {
+          id: 'default'
+        }
+      }
+    })
+
+  }
+
+  return(
+    <View style={styles.container}>
+      <Text>Notificaçoes App</Text>
+      <Button
+        title="Enviar notificaçao"
+        onPress={handleNotificate}
       />
-      <ScrollView
-        contentInsetAdjustmentBehavior="automatic"
-        style={backgroundStyle}>
-        <Header />
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+    </View>
+  )
 }
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
-  },
-  sectionTitle: {
-    fontSize: 24,
-    fontWeight: '600',
-  },
-  sectionDescription: {
-    marginTop: 8,
-    fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
-  },
-});
-
-export default App;
+  container:{
+    flex:1,
+    justifyContent: 'center',
+    alignItems: 'center'
+  }
+})
